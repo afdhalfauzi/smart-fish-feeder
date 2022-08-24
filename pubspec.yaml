@@ -15,8 +15,10 @@ publish_to: "none" # Remove this line if you wish to publish to pub.dev
 # In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
+version: 1.0.0+1
 
 environment:
+  sdk: ">=2.17.6 <3.0.0"
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -30,11 +32,17 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
+  cupertino_icons: ^1.0.2
 
   flutter_native_splash: ^2.2.7
+  liquid_progress_indicator: ^0.4.0
+  smooth_page_indicator: ^1.0.0+2
 
   #database storage
+  sqflite: ^2.0.0+3
 
+  shared_preferences: ^2.0.15
+  path_provider: ^2.0.11
   mqtt_client: ^9.6.8
 
 dev_dependencies:
@@ -46,6 +54,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
+  flutter_lints: ^2.0.0
 
 flutter_native_splash:
   color: "#FF893E"
