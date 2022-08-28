@@ -56,18 +56,6 @@ class _DashboardPageState extends State<DashboardPage> {
   final pageViewController = PageController(initialPage: 0);
   static int indexPage = 0;
   double sliderValueManual = 5;
-  final appBar = AppBar(
-    title: const Text(
-      'Dashboard',
-    ),
-    systemOverlayStyle: SystemUiOverlayStyle.light,
-    // toolbarHeight: 70,
-    toolbarHeight: kToolbarHeight + 1,
-    foregroundColor: Colors.white,
-    backgroundColor: Colors.red,
-    elevation: 0.0,
-    centerTitle: true,
-  );
 
   @override
   Widget build(BuildContext context) {
@@ -75,15 +63,27 @@ class _DashboardPageState extends State<DashboardPage> {
 
     return Scaffold(
       extendBodyBehindAppBar: true,
-      appBar: appBar,
+      appBar: _buildAppbar(),
       body: ListView(children: [
-        //UPPER PART
         _buildUpperPart(),
-        //SCHEDULEONOFF
         _buildScheduleSwitch(),
-        //SCHEDULELIST
-        _buildSchedule(),
+        _buildScheduleList(),
       ]),
+    );
+  }
+
+  PreferredSizeWidget _buildAppbar() {
+    return AppBar(
+      title: const Text(
+        'Dashboard',
+      ),
+      systemOverlayStyle: SystemUiOverlayStyle.light,
+      // toolbarHeight: 70,
+      toolbarHeight: kToolbarHeight + 1,
+      foregroundColor: Colors.white,
+      backgroundColor: Colors.red,
+      elevation: 0.0,
+      centerTitle: true,
     );
   }
 
@@ -341,28 +341,6 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  Widget _buildSchedule() {
-    return Column(
-      children: [
-        _buildScheduleList(),
-        ElevatedButton(
-            onPressed: () {
-              setState(() {
-                Navigator.of(context)
-                    .push(MaterialPageRoute(builder: (context) {
-                  return AddSchedule(
-                    time: TimeOfDay(hour: 07, minute: 00),
-                    gr: 5,
-                    selectedID: null,
-                  );
-                })).then((_) => setState((() {})));
-              });
-            },
-            child: const Text('Add Schedule')),
-      ],
-    );
-  }
-
   Widget _buildScheduleList() {
     return Container(
         height: screenHeight * 0.45,
@@ -370,9 +348,10 @@ class _DashboardPageState extends State<DashboardPage> {
         child: (!_isSchedule)
             ? const Center(
                 child: Text(
-                'Schedule is Disabled',
-                style: TextStyle(fontSize: 20, color: Colors.grey),
-              ))
+                  'Schedule is Disabled',
+                  style: TextStyle(fontSize: 20, color: Colors.grey),
+                ),
+              )
             : FutureBuilder<List<Schedules>>(
                 future: DatabaseHelper.instance.getSchedules(),
                 builder: ((context, snapshot) {
@@ -383,58 +362,90 @@ class _DashboardPageState extends State<DashboardPage> {
                       style: TextStyle(fontSize: 20, color: Colors.grey),
                     ));
                   }
+                  List scheduleList = snapshot.data!.map((schedules) {
+                    return ListTile(
+                      title: Text(
+                          '${schedules.id} - ${schedules.time} - ${schedules.gr}gr'),
+                      trailing: Wrap(
+                        children: [
+                          IconButton(
+                              onPressed: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (context) {
+                                    return AddSchedule(
+                                      time: TimeOfDay(
+                                          hour: int.parse(
+                                              schedules.time.split(':')[0]),
+                                          minute: int.parse(
+                                              schedules.time.split(':')[1])),
+                                      gr: schedules.gr,
+                                      selectedID: schedules.id,
+                                    );
+                                  }),
+                                ).then((_) => setState(
+                                      () {},
+                                    ));
+                              },
+                              icon: Icon(Icons.edit)),
+                          IconButton(
+                              onPressed: () {
+                                _deleteScheduleDialog(context, schedules.id!)
+                                    .then((value) {
+                                  setState(
+                                    () {},
+                                  );
+                                });
+                              },
+                              icon: Icon(Icons.delete)),
+                        ],
+                      ),
+                    );
+                  }).toList();
                   return snapshot.data!.isEmpty
-                      ? const Center(
-                          child: Text(
-                            'No Schedule in List.',
-                            style: TextStyle(fontSize: 20, color: Colors.grey),
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'No Schedule in List.',
+                                style:
+                                    TextStyle(fontSize: 20, color: Colors.grey),
+                              ),
+                              _buildAddScheduleButton(),
+                            ],
                           ),
                         )
-                      : ListView(
-                          children: snapshot.data!.map((schedules) {
-                            return ListTile(
-                              title: Text(
-                                  '${schedules.id} - ${schedules.time} - ${schedules.gr}gr'),
-                              trailing: Wrap(
-                                children: [
-                                  IconButton(
-                                      onPressed: () {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(builder: (context) {
-                                            return AddSchedule(
-                                              time: TimeOfDay(
-                                                  hour: int.parse(schedules.time
-                                                      .split(':')[0]),
-                                                  minute: int.parse(schedules
-                                                      .time
-                                                      .split(':')[1])),
-                                              gr: schedules.gr,
-                                              selectedID: schedules.id,
-                                            );
-                                          }),
-                                        ).then((_) => setState(
-                                              () {},
-                                            ));
-                                      },
-                                      icon: Icon(Icons.edit)),
-                                  IconButton(
-                                      onPressed: () {
-                                        _deleteScheduleDialog(
-                                                context, schedules.id!)
-                                            .then((value) {
-                                          setState(
-                                            () {},
-                                          );
-                                        });
-                                      },
-                                      icon: Icon(Icons.delete)),
-                                ],
-                              ),
-                            );
-                          }).toList(),
+                      : ListView.separated(
+                          itemCount: scheduleList.length + 1,
+                          separatorBuilder: (_, __) => Divider(height: 0.5),
+                          itemBuilder: (context, index) {
+                            if (index == scheduleList.length) {
+                              return _buildAddScheduleButton();
+                            }
+                            return scheduleList[index];
+                          },
                         );
                 }),
               ));
+  }
+
+  Widget _buildAddScheduleButton() {
+    return ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          primary: myOrange,
+        ),
+        onPressed: () {
+          setState(() {
+            Navigator.of(context).push(MaterialPageRoute(builder: (context) {
+              return AddSchedule(
+                time: TimeOfDay(hour: 07, minute: 00),
+                gr: 5,
+                selectedID: null,
+              );
+            })).then((_) => setState((() {})));
+          });
+        },
+        child: const Text('Add Schedule'));
   }
 }
 
