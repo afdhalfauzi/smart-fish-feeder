@@ -6,29 +6,32 @@ import 'package:flutter/material.dart';
 import 'package:pakan_ikan_iot/pages/activity_page.dart';
 import 'package:pakan_ikan_iot/pages/dashboard_page.dart';
 import 'package:pakan_ikan_iot/pages/settings_page.dart';
+import 'package:provider/provider.dart';
+
+import 'mqtt/mqtt_app_state.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+  runApp(const MainPage());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+// class MyApp extends StatelessWidget {
+//   const MyApp({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Smart Fish Feeder',
-      theme: ThemeData(
-          appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-      )),
-      home: MainPage(),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return MaterialApp(
+//       debugShowCheckedModeBanner: false,
+//       title: 'Smart Fish Feeder',
+//       theme: ThemeData(
+//           appBarTheme: const AppBarTheme(
+//         backgroundColor: Colors.white,
+//         foregroundColor: Colors.black,
+//       )),
+//       home: MainPage(),
+//     );
+//   }
+// }
 
 class MainPage extends StatefulWidget {
   const MainPage({Key? key}) : super(key: key);
@@ -47,34 +50,38 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: screens[currentIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        // type: BottomNavigationBarType.shifting,
-        // backgroundColor: Color.fromARGB(255, 255, 132, 62),
-        // selectedItemColor: Colors.white,
-        backgroundColor: Colors.white,
-        selectedItemColor: Color.fromARGB(255, 255, 132, 62),
-        showUnselectedLabels: false,
+    return ChangeNotifierProvider<MQTTAppState>(
+        create: (_) => MQTTAppState(),
+        child: MaterialApp(
+          home: Scaffold(
+            body: screens[currentIndex],
+            bottomNavigationBar: BottomNavigationBar(
+              // type: BottomNavigationBarType.shifting,
+              // backgroundColor: Color.fromARGB(255, 255, 132, 62),
+              // selectedItemColor: Colors.white,
+              backgroundColor: Colors.white,
+              selectedItemColor: Color.fromARGB(255, 255, 132, 62),
+              showUnselectedLabels: false,
 
-        currentIndex: currentIndex,
-        onTap: (index) => setState(() => currentIndex = index),
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.list),
-            label: 'Activity Log',
+              currentIndex: currentIndex,
+              onTap: (index) => setState(() => currentIndex = index),
+              items: const [
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.list),
+                  label: 'Activity Log',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.dashboard),
+                  label: 'Dashboard',
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.settings),
+                  label: 'Settings',
+                ),
+              ],
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard),
-            label: 'Dashboard',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
-      ),
-    );
+        ));
   }
 }
 

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:pakan_ikan_iot/db/database_helper.dart';
 import 'package:pakan_ikan_iot/model/model.dart';
 import 'package:pakan_ikan_iot/pages/dashboard_page.dart';
+import 'package:provider/provider.dart';
+
+import '../mqtt/mqtt_app_state.dart';
 
 class AddSchedule extends StatefulWidget {
   // const AddSchedule({Key? key}) : super(key: key);
@@ -14,7 +17,6 @@ class AddSchedule extends StatefulWidget {
   @override
   State<AddSchedule> createState() => _AddScheduleState();
 }
-//ssddd
 
 class _AddScheduleState extends State<AddSchedule> {
   get statusBarHeight => MediaQuery.of(context).padding.top;
@@ -115,6 +117,7 @@ class _AddScheduleState extends State<AddSchedule> {
   }
 
   double sliderValueSchedule = 5;
+  late MQTTAppState currentAppState;
 
   @override
   Widget build(BuildContext context) {

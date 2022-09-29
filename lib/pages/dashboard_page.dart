@@ -1,15 +1,21 @@
-import 'dart:ffi';
+// import 'dart:ffi';
+// import 'package:flutter/cupertino.dart';
+import 'dart:ui';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:liquid_progress_indicator/liquid_progress_indicator.dart';
+import 'package:mqtt_client/mqtt_client.dart';
 import 'package:pakan_ikan_iot/db/database_helper.dart';
 import 'package:pakan_ikan_iot/model/model.dart';
+import 'package:pakan_ikan_iot/mqtt/mqtt_manager.dart';
 import 'package:pakan_ikan_iot/pages/add_schedule_page.dart';
-import 'package:pakan_ikan_iot/utils/utils.dart';
+// import 'package:pakan_ikan_iot/utils/utils.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+
+import '../mqtt/mqtt_app_state.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({Key? key}) : super(key: key);
@@ -33,6 +39,9 @@ class _DashboardPageState extends State<DashboardPage> {
   void initState() {
     indexPage = 0;
     getSchedulePref();
+    Future.delayed(Duration.zero).then((value) {
+      _connectMQTT('pakanIkan/#');
+    });
     super.initState();
   }
 
@@ -48,6 +57,8 @@ class _DashboardPageState extends State<DashboardPage> {
     await pref.setBool('isSchedule', _isSchedule);
   }
 
+  late MQTTAppState currentAppState;
+  late MQTTManager manager;
   int? updateID;
   Color myOrange = Color(0xFFFF893E);
   TimeOfDay time = TimeOfDay(
@@ -59,8 +70,8 @@ class _DashboardPageState extends State<DashboardPage> {
 
   @override
   Widget build(BuildContext context) {
-    int _radio = 1;
-
+    final MQTTAppState appState = Provider.of<MQTTAppState>(context);
+    currentAppState = appState;
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: _buildAppbar(),
@@ -116,6 +127,23 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
           _buildNavigationButton(), //next and previous page of upper part
           _buildPageIndicator(),
+          Align(
+            alignment: Alignment.topCenter,
+            child: Text((() {
+              if (currentAppState.getAppConnectionState ==
+                  MQTTAppConnectionState.connected) {
+                return "Connected";
+              } else if (currentAppState.getAppConnectionState ==
+                  MQTTAppConnectionState.connecting) {
+                return "Connecting";
+              } else if (currentAppState.getAppConnectionState ==
+                  MQTTAppConnectionState.disconnected) {
+                return "Not Connected";
+              } else {
+                return "anything but true";
+              }
+            })(), style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
     );
@@ -134,11 +162,12 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Widget _buildLiquidIndicator() {
+    double foodLevel = double.parse('${currentAppState.getReceivedText}');
     return Container(
       padding: EdgeInsets.only(left: 10, right: 10, bottom: 15),
       height: screenHeight * 0.45,
       child: LiquidLinearProgressIndicator(
-        value: 0.7,
+        value: foodLevel / 100,
         valueColor: AlwaysStoppedAnimation(Color.fromARGB(50, 255, 255, 255)),
         backgroundColor: Colors.transparent,
         borderColor: Colors.transparent,
@@ -147,22 +176,33 @@ class _DashboardPageState extends State<DashboardPage> {
         direction: Axis.vertical,
         center: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Text(
-              "72⁒",
-              style: TextStyle(color: Colors.white, fontSize: 80, shadows: [
-                Shadow(
-                    color: Color.fromARGB(40, 0, 0, 0),
-                    offset: Offset(1.5, 1.5))
-              ]),
-            ),
+          children: [
+            (currentAppState.getAppConnectionState ==
+                    MQTTAppConnectionState.connected)
+                ? Text(
+                    "$foodLevel⁒",
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 80,
+                        shadows: [
+                          Shadow(
+                              color: Color.fromARGB(40, 0, 0, 0),
+                              offset: Offset(1.5, 1.5))
+                        ]),
+                  )
+                : SizedBox(
+                    child: CircularProgressIndicator(),
+                    height: 80,
+                    width: 80,
+                  ),
             Text(
               'Food Level',
               style: TextStyle(
                   color: Colors.white,
                   fontSize: 20,
                   fontWeight: FontWeight.w700),
-            )
+            ),
+            (foodLevel < 20) ? Text('WARNING: FOOD LEVEL LOW') : Text(''),
           ],
         ),
       ),
@@ -447,63 +487,87 @@ class _DashboardPageState extends State<DashboardPage> {
         },
         child: const Text('Add Schedule'));
   }
-}
 
 //UTILITY
-Future _deleteScheduleDialog(BuildContext context, int id) async {
-  return await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-            title: Text('Confirm'),
-            content: Text('Delete Selected Schedule?'),
-            actions: [
-              TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: Text("Cancel")),
-              TextButton(
-                  onPressed: () {
-                    DatabaseHelper.instance.remove(id);
-                    Navigator.pop(context);
-                    _showToast(context, Text('Selected schedule deleted'));
-                  },
-                  child: Text("Delete")),
-            ]);
-      });
-}
+  Future _deleteScheduleDialog(BuildContext context, int id) async {
+    return await showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+              title: Text('Confirm'),
+              content: Text('Delete Selected Schedule?'),
+              actions: [
+                TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: Text("Cancel")),
+                TextButton(
+                    onPressed: () {
+                      DatabaseHelper.instance.remove(id);
+                      Navigator.pop(context);
+                      _showToast(context, Text('Selected schedule deleted'));
+                    },
+                    child: Text("Delete")),
+              ]);
+        });
+  }
 
-Future _manualFeedDialog(BuildContext context, double sliderValueManual) {
-  return showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-            title: Text('Confirm'),
-            content: Text('Feed the fish with ' +
-                sliderValueManual.round().toString() +
-                'gr of food?'),
-            actions: [
-              TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  child: Text("Cancel")),
-              TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _showToast(context, Text('Manual feed is given'));
-                  },
-                  child: Text("Feed")),
-            ]);
-      });
-}
+  Future _manualFeedDialog(BuildContext context, double sliderValueManual) {
+    return showDialog(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+              title: Text('Confirm'),
+              content: Text('Feed the fish with ' +
+                  sliderValueManual.round().toString() +
+                  'gr of food?'),
+              actions: [
+                TextButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: Text("Cancel")),
+                TextButton(
+                    onPressed: () {
+                      if (currentAppState.getAppConnectionState ==
+                          MQTTAppConnectionState.connected) {
+                        _publishMessage('pakanIkan/manual',
+                            sliderValueManual.round().toString());
+                        Navigator.pop(context);
+                        _showToast(context, Text('Manual feed is given'));
+                      } else {
+                        _showToast(context, Text('MQTT is not connected'));
+                        Navigator.pop(context);
+                      }
+                    },
+                    child: Text("Feed")),
+              ]);
+        });
+  }
 
-void _showToast(BuildContext context, Text text) {
-  final scaffold = ScaffoldMessenger.of(context);
-  scaffold.showSnackBar(
-    SnackBar(
-      content: text,
-    ),
-  );
+  void _showToast(BuildContext context, Text text) {
+    final scaffold = ScaffoldMessenger.of(context);
+    scaffold.showSnackBar(
+      SnackBar(
+        content: text,
+      ),
+    );
+  }
+
+//MQTT UTILITY
+  void _connectMQTT(String topic) {
+    manager = MQTTManager(topic: topic, state: currentAppState);
+    manager.initializeMQTTClient();
+    manager.connect();
+  }
+
+  void _disconnectMQTT() {
+    manager.disconnect();
+  }
+
+  void _publishMessage(String topic, String text) {
+    final String message = text;
+    manager.publish(topic, message);
+  }
 }
